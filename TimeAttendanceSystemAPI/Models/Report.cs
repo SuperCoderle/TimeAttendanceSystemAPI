@@ -26,6 +26,8 @@ public partial class Report
     [Column(TypeName = "money")]
     public decimal GrossPay { get; set; }
 
+    public int MonthlyReport { get; set; }
+
     [Required]
     [StringLength(20)]
     public string PaidStatus { get; set; }

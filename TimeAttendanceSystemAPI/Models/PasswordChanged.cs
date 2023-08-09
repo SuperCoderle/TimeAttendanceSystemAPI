@@ -8,17 +8,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TimeAttendanceSystemAPI.Models;
 
-[Keyless]
-[Table("UserRole")]
-public partial class UserRole
+[Table("PasswordChanged")]
+public partial class PasswordChanged
 {
+    [Key]
+    public int PasswordChangedID { get; set; }
+
     public Guid UserID { get; set; }
 
-    public int RoleID { get; set; }
-
-    [ForeignKey("RoleID")]
-    public virtual Role Role { get; set; }
+    [Required]
+    [Column(TypeName = "text")]
+    public string OldPassword { get; set; }
 
     [ForeignKey("UserID")]
+    [InverseProperty("PasswordChangeds")]
     public virtual TbUser User { get; set; }
 }

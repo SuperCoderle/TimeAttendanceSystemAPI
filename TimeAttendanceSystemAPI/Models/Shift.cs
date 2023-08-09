@@ -8,16 +8,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TimeAttendanceSystemAPI.Models;
 
-[Table("Violation")]
-public partial class Violation
+[Table("Shift")]
+public partial class Shift
 {
     [Key]
-    public int ViolationID { get; set; }
+    public int ShiftID { get; set; }
 
     [Required]
-    [StringLength(50)]
-    public string ViolationError { get; set; }
+    [StringLength(20)]
+    public string ShiftName { get; set; }
 
-    [InverseProperty("Violation")]
+    public TimeSpan StartTime { get; set; }
+
+    public TimeSpan EndTime { get; set; }
+
+    [InverseProperty("Shift")]
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 }

@@ -1,9 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TimeAttendanceSystemAPI.Models;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class EmployeesController : ControllerBase
@@ -16,13 +19,14 @@ namespace TimeAttendanceSystemAPI.Controllers
         }
 
         // GET: api/Employees
+        [Roles("Administrator", "Manager")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Employee>>> GetEmployees()
         {
-          if (_context.Employees == null)
-          {
+            if (_context.Employees == null)
+            {
               return NotFound();
-          }
+            }
             return await _context.Employees.ToListAsync();
         }
 
@@ -30,11 +34,41 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Employee>> GetEmployee(Guid id)
         {
-          if (_context.Employees == null)
-          {
-              return NotFound();
-          }
+            if (_context.Employees == null)
+            {
+                return NotFound();
+            }
             var employee = await _context.Employees.FindAsync(id);
+
+            if (employee == null)
+            {
+                return NotFound();
+            }
+
+            return employee;
+        }
+
+        // GET: api/Employees/Authenticated
+        [HttpGet("Authenticated")]
+        public async Task<ActionResult<Employee>> GetEmployeeByAuth()
+        {
+            if (_context.Employees == null)
+            {
+                return NotFound();
+            }
+
+            if(!User.Identity!.IsAuthenticated)
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.TbUsers.FindAsync(Guid.Parse(User.FindFirstValue("id")!));
+            if (user == null)
+            {
+                return BadRequest("User does not exists");
+            }
+
+            var employee = await _context.Employees.FindAsync(user.EmployeeID);
 
             if (employee == null)
             {
@@ -77,6 +111,7 @@ namespace TimeAttendanceSystemAPI.Controllers
 
         // POST: api/Employees
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Roles("Administrator", "Manager")]
         [HttpPost]
         public async Task<ActionResult<Employee>> PostEmployee(Employee employee)
         {
@@ -120,18 +155,10 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return NotFound();
             }
 
-            var user = await _context.TbUsers.Where(u => u.EmployeeID == id).FirstOrDefaultAsync();
-            if(user != null)
-            {
-                var user_role = await _context.UserRoles.Where(ur => ur.UserID == user.UserID).FirstOrDefaultAsync();
-
-                if (user_role != null)
-                {
-                    await CancelRelated(user_role);
-                }
-
-                _context.TbUsers.Remove(user);
-            }
+            await DeleteUser(id);
+            await DeletePayroll(id);
+            await DeleteReport(id);
+            await DeleteSchedule(id);
 
             _context.Employees.Remove(employee);
             await _context.SaveChangesAsync();
@@ -144,10 +171,142 @@ namespace TimeAttendanceSystemAPI.Controllers
             return (_context.Employees?.Any(e => e.EmployeeID == id)).GetValueOrDefault();
         }
 
-        private async Task CancelRelated(UserRole ur)
+        private async Task DeleteUser(Guid empID)
         {
-            _context.UserRoles.Remove(ur);
-            await _context.SaveChangesAsync();
+            if(_context.TbUsers == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var user = await _context.TbUsers.Where(u => u.EmployeeID == empID).FirstOrDefaultAsync();
+                if (user != null)
+                {
+                    await CancelRelationship(user);
+                    _context.TbUsers.Remove(user);
+                }
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        private async Task DeletePayroll(Guid empID)
+        {
+            if (_context.Payrolls == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var payroll = await _context.Payrolls.Where(x => x.EmployeeID == empID).FirstOrDefaultAsync();
+                if (payroll != null)
+                {
+                    _context.Payrolls.Remove(payroll);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            finally 
+            { 
+                await _context.SaveChangesAsync(); 
+            }
+        }
+
+        private async Task DeleteReport(Guid empID)
+        {
+            if (_context.Reports == null)
+                return;
+            try
+            {
+                var reports = await _context.Reports.Where(x => x.EmployeeID == empID).ToListAsync();
+                if(reports.Any())
+                {
+                    foreach (var report in reports)
+                    {
+                        _context.Reports.Remove(report);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task DeleteSchedule(Guid empID)
+        {
+            if (_context.Reports == null)
+                return;
+            try
+            {
+                var schedules = await _context.Schedules.Where(x => x.EmployeeID == empID).ToListAsync();
+                if (schedules.Any())
+                {
+                    foreach (var schedule in schedules)
+                    {
+                        _context.Schedules.Remove(schedule);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task CancelRelationship(TbUser user)
+        {
+            var userRoles = await _context.UserRoles.Where(x => x.UserID == user.UserID).ToListAsync();
+            if (userRoles.Any())
+            {
+                foreach(var role in userRoles)
+                {
+                    _context.UserRoles.Remove(role);
+                }
+            }
+
+            var refreshTokens = await _context.RefreshTokens.Where(x => x.UserID == user.UserID).ToListAsync();
+            if (refreshTokens.Any())
+            {
+                foreach( var refreshToken in refreshTokens)
+                {
+                    _context.RefreshTokens.Remove(refreshToken);
+                }
+            }
+
+            var passwordChangeds = await _context.PasswordChangeds.Where(x => x.UserID == user.UserID).ToListAsync();
+            if (passwordChangeds.Any())
+            {
+                foreach (var passwordChanged in passwordChangeds)
+                {
+                    _context.PasswordChangeds.Remove(passwordChanged);
+                }
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
     }
 }

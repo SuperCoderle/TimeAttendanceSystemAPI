@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class PayrollsController : ControllerBase
@@ -21,6 +18,7 @@ namespace TimeAttendanceSystemAPI.Controllers
         }
 
         // GET: api/Payrolls
+        [Roles("Administrator", "Manager")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Payroll>>> GetPayrolls()
         {
@@ -32,6 +30,7 @@ namespace TimeAttendanceSystemAPI.Controllers
         }
 
         // GET: api/Payrolls/5
+        [Roles("Administrator", "Manager")]
         [HttpGet("{id}")]
         public async Task<ActionResult<Payroll>> GetPayroll(int id)
         {
@@ -49,8 +48,27 @@ namespace TimeAttendanceSystemAPI.Controllers
             return payroll;
         }
 
+        // GET: api/Payrolls/5
+        [HttpGet("Employee")]
+        public async Task<ActionResult<Payroll>> GetPayrollByEmployee(Guid id)
+        {
+            if (_context.Payrolls == null)
+            {
+                return NotFound();
+            }
+            var payroll = await _context.Payrolls.Where(x => x.EmployeeID == id).FirstOrDefaultAsync();
+
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            return payroll;
+        }
+
         // PUT: api/Payrolls/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Roles("Administrator", "Manager")]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPayroll(int id, Payroll payroll)
         {
@@ -82,6 +100,7 @@ namespace TimeAttendanceSystemAPI.Controllers
 
         // POST: api/Payrolls
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Roles("Administrator", "Manager")]
         [HttpPost]
         public async Task<ActionResult<Payroll>> PostPayroll(Payroll payroll)
         {
@@ -89,6 +108,9 @@ namespace TimeAttendanceSystemAPI.Controllers
           {
               return Problem("Entity set 'TimeAttendanceSystemContext.Payrolls'  is null.");
           }
+            int maxColumn = _context.Payrolls.OrderByDescending(x => x.PayRollID).FirstOrDefault() != null ? _context.Payrolls.OrderByDescending(x => x.PayRollID).FirstOrDefault()!.PayRollID : 0;
+            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Payroll, RESEED, {maxColumn})");
+
             _context.Payrolls.Add(payroll);
             await _context.SaveChangesAsync();
 
@@ -96,6 +118,7 @@ namespace TimeAttendanceSystemAPI.Controllers
         }
 
         // DELETE: api/Payrolls/5
+        [Roles("Administrator", "Manager")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePayroll(int id)
         {

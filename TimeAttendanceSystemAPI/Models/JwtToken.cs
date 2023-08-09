@@ -2,7 +2,8 @@
 {
     public class JwtToken
     {
-        public string? token { get; set; }
-        public string? refToken { get; set; }
+        public string? Token { get; set; }
+        public string? RefreshToken { get; set; }
+        public bool isSuccess { get; set; }
     }
 }

@@ -50,4 +50,7 @@ public partial class Employee
 
     [InverseProperty("Employee")]
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+
+    [InverseProperty("Employee")]
+    public virtual ICollection<TbUser> TbUsers { get; set; } = new List<TbUser>();
 }

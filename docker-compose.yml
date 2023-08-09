@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  timeattendancesystemapi:
+    image: ${DOCKER_REGISTRY-}timeattendancesystemapi
+    build:
+      context: .
+      dockerfile: TimeAttendanceSystemAPI/Dockerfile
