@@ -14,9 +14,7 @@ public partial class Schedule
     [Key]
     public Guid ScheduleID { get; set; }
 
-    [Required]
-    [StringLength(20)]
-    public string Shift { get; set; }
+    public int? ShiftID { get; set; }
 
     public TimeSpan TimeIn { get; set; }
 
@@ -33,7 +31,11 @@ public partial class Schedule
     [Column(TypeName = "decimal(8, 2)")]
     public decimal TotalWorkHours { get; set; }
 
-    public string Status { get; set; }
+    public bool IsInProgress { get; set; }
+
+    public bool IsSubmit { get; set; }
+
+    public bool IsOpen { get; set; }
 
     public int? ViolationID { get; set; }
 
@@ -46,12 +48,17 @@ public partial class Schedule
     [Column(TypeName = "datetime")]
     public DateTime CreatedAt { get; set; }
 
+    [Required]
     [StringLength(100)]
     public string CreatedBy { get; set; }
 
     [ForeignKey("EmployeeID")]
     [InverseProperty("Schedules")]
     public virtual Employee Employee { get; set; }
+
+    [ForeignKey("ShiftID")]
+    [InverseProperty("Schedules")]
+    public virtual Shift Shift { get; set; }
 
     [ForeignKey("ViolationID")]
     [InverseProperty("Schedules")]

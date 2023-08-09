@@ -23,6 +23,7 @@ public partial class TbUser
     public string Email { get; set; }
 
     [Required]
+    [Column(TypeName = "text")]
     public string Password { get; set; }
 
     public Guid? EmployeeID { get; set; }
@@ -37,5 +38,16 @@ public partial class TbUser
     public DateTime? LastUpdatedAt { get; set; }
 
     public bool IsManager { get; set; }
+
     public bool IsActive { get; set; }
+
+    [ForeignKey("EmployeeID")]
+    [InverseProperty("TbUsers")]
+    public virtual Employee Employee { get; set; }
+
+    [InverseProperty("User")]
+    public virtual ICollection<PasswordChanged> PasswordChangeds { get; set; } = new List<PasswordChanged>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

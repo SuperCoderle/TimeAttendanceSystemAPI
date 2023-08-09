@@ -18,15 +18,18 @@ public partial class Menu
     [StringLength(100)]
     public string Title { get; set; }
 
-    [Required]
-    [StringLength(100)]
-    public string Tooltip { get; set; }
+    [StringLength(50)]
+    public string Icon { get; set; }
 
     [Required]
     [Column(TypeName = "text")]
     public string Url { get; set; }
 
+    public int? ParentID { get; set; }
+
     public bool IsActive { get; set; }
+
+    public bool IsSubmenu { get; set; }
 
     [Column(TypeName = "datetime")]
     public DateTime CreatedAt { get; set; }
@@ -36,4 +39,11 @@ public partial class Menu
 
     [StringLength(100)]
     public string LastUpdatedBy { get; set; }
+
+    [InverseProperty("Parent")]
+    public virtual ICollection<Menu> InverseParent { get; set; } = new List<Menu>();
+
+    [ForeignKey("ParentID")]
+    [InverseProperty("InverseParent")]
+    public virtual Menu Parent { get; set; }
 }

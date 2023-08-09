@@ -17,7 +17,11 @@ public partial class TimeAttendanceSystemContext : DbContext
 
     public virtual DbSet<Menu> Menus { get; set; }
 
+    public virtual DbSet<PasswordChanged> PasswordChangeds { get; set; }
+
     public virtual DbSet<Payroll> Payrolls { get; set; }
+
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public virtual DbSet<Report> Reports { get; set; }
 
@@ -26,6 +30,8 @@ public partial class TimeAttendanceSystemContext : DbContext
     public virtual DbSet<RoleMenu> RoleMenus { get; set; }
 
     public virtual DbSet<Schedule> Schedules { get; set; }
+
+    public virtual DbSet<Shift> Shifts { get; set; }
 
     public virtual DbSet<TbUser> TbUsers { get; set; }
 
@@ -40,12 +46,22 @@ public partial class TimeAttendanceSystemContext : DbContext
             entity.HasKey(e => e.EmployeeID).HasName("employee_employeeid_primary");
 
             entity.Property(e => e.EmployeeID).ValueGeneratedNever();
-            entity.Property(e => e.Gender).IsFixedLength();
         });
 
         modelBuilder.Entity<Menu>(entity =>
         {
             entity.HasKey(e => e.MenuID).HasName("menu_menuid_primary");
+
+            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent).HasConstraintName("FK_Menu_Menu");
+        });
+
+        modelBuilder.Entity<PasswordChanged>(entity =>
+        {
+            entity.HasKey(e => e.PasswordChangedID).HasName("PK__Password__69BDAB40489DB4C0");
+
+            entity.HasOne(d => d.User).WithMany(p => p.PasswordChangeds)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PasswordChanged_TbUser");
         });
 
         modelBuilder.Entity<Payroll>(entity =>
@@ -55,6 +71,15 @@ public partial class TimeAttendanceSystemContext : DbContext
             entity.HasOne(d => d.Employee).WithMany(p => p.Payrolls)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Payroll_Employee");
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.ID).HasName("PK__RefreshT__3214EC276D7EE9CF");
+
+            entity.HasOne(d => d.User).WithMany(p => p.RefreshTokens)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RefreshToken_TbUser");
         });
 
         modelBuilder.Entity<Report>(entity =>
@@ -93,7 +118,14 @@ public partial class TimeAttendanceSystemContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Schedule_Employee");
 
+            entity.HasOne(d => d.Shift).WithMany(p => p.Schedules).HasConstraintName("FK_Schedule_Shift");
+
             entity.HasOne(d => d.Violation).WithMany(p => p.Schedules).HasConstraintName("FK_Schedule_Violation");
+        });
+
+        modelBuilder.Entity<Shift>(entity =>
+        {
+            entity.HasKey(e => e.ShiftID).HasName("PK__Shift__C0A838E168C12407");
         });
 
         modelBuilder.Entity<TbUser>(entity =>
@@ -101,6 +133,8 @@ public partial class TimeAttendanceSystemContext : DbContext
             entity.HasKey(e => e.UserID).HasName("user_userid_primary");
 
             entity.Property(e => e.UserID).ValueGeneratedNever();
+
+            entity.HasOne(d => d.Employee).WithMany(p => p.TbUsers).HasConstraintName("FK_TbUser_Employee");
         });
 
         modelBuilder.Entity<UserRole>(entity =>
@@ -109,6 +143,10 @@ public partial class TimeAttendanceSystemContext : DbContext
             entity.HasOne(d => d.Role).WithMany()
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_UserRole_Role");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UserRole_TbUser");
         });
 
         modelBuilder.Entity<Violation>(entity =>

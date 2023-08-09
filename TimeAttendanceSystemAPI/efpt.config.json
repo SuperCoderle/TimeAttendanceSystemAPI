@@ -23,7 +23,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[PasswordChanged]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Payroll]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[RefreshToken]",
          "ObjectType": 0
       },
       {
@@ -40,6 +48,10 @@
       },
       {
          "Name": "[dbo].[Schedule]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Shift]",
          "ObjectType": 0
       },
       {

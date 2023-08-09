@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ReportsController : ControllerBase
@@ -21,14 +18,17 @@ namespace TimeAttendanceSystemAPI.Controllers
         }
 
         // GET: api/Reports
+        [Roles("Administrator", "Manager")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Report>>> GetReports()
+        public async Task<ActionResult<IEnumerable<Report>>> GetReports(int month)
         {
-          if (_context.Reports == null)
-          {
+            await PostReport(month);
+
+            if (_context.Reports == null)
+            {
               return NotFound();
-          }
-            return await _context.Reports.ToListAsync();
+            }
+            return await _context.Reports.Where(x => x.MonthlyReport == month).ToListAsync();
         }
 
         // GET: api/Reports/5
@@ -51,6 +51,7 @@ namespace TimeAttendanceSystemAPI.Controllers
 
         // PUT: api/Reports/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Roles("Administrator", "Manager")]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutReport(int id, Report report)
         {
@@ -80,22 +81,64 @@ namespace TimeAttendanceSystemAPI.Controllers
             return NoContent();
         }
 
-        // POST: api/Reports
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Report>> PostReport(Report report)
+        private async Task PostReport(int month)
         {
-          if (_context.Reports == null)
-          {
-              return Problem("Entity set 'TimeAttendanceSystemContext.Reports'  is null.");
-          }
-            _context.Reports.Add(report);
-            await _context.SaveChangesAsync();
+            try
+            {
+                int maxColumn = _context.Reports.OrderByDescending(x => x.ReportID).FirstOrDefault() != null ? _context.Reports.OrderByDescending(x => x.ReportID).FirstOrDefault().ReportID : 0;
+                _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Report, RESEED, {maxColumn})");
 
-            return CreatedAtAction("GetReport", new { id = report.ReportID }, report);
+                foreach (var emp in _context.Employees)
+                {
+                    decimal total = 0;
+                    var schedules = await _context.Schedules.Where(x => x.EmployeeID == emp.EmployeeID && x.WorkDate.Month == month).ToListAsync();
+                    foreach (var sche in schedules)
+                    {
+                        total += sche.TotalWorkHours;
+                    }
+                    decimal basicSalary = _context.Payrolls.Where(x => x.EmployeeID == emp.EmployeeID).FirstOrDefault()!.BasicSalary;
+                    total = total * basicSalary;
+
+                    if (await _context.Reports.AnyAsync(x => x.EmployeeID == emp.EmployeeID && x.MonthlyReport == month))
+                    {
+                        var report = _context.Reports.Where(x => x.EmployeeID == emp.EmployeeID).FirstOrDefault();
+                        
+                        if (report != null)
+                        {
+                            report.GrossPay = total;
+                            report.LastUpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                    else
+                    {
+                        Report newReport = new Report
+                        {
+                            ReportID = 0,
+                            Title = $"Lương tháng {month}",
+                            Description = null,
+                            EmployeeID = emp.EmployeeID,
+                            GrossPay = total,
+                            MonthlyReport = month,
+                            PaidStatus = "Chưa thanh toán",
+                            CreatedAt = DateTime.Now,
+                            LastUpdatedAt = null,
+                            LastUpdatedBy = null,
+                        };
+
+                        _context.Reports.Add(newReport);
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
         }
 
         // DELETE: api/Reports/5
+        [Roles("Administrator", "Manager")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReport(int id)
         {

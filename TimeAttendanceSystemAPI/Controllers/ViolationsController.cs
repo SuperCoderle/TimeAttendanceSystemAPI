@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
+    [Authorize]
+    [Roles("Administrator", "Manager")]
     [Route("api/[controller]")]
     [ApiController]
     public class ViolationsController : ControllerBase
@@ -85,10 +83,14 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Violation>> PostViolation(Violation violation)
         {
-          if (_context.Violations == null)
-          {
+            if (_context.Violations == null)
+            {
               return Problem("Entity set 'TimeAttendanceSystemContext.Violations'  is null.");
-          }
+            }
+
+            int maxColumn = _context.Violations.OrderByDescending(x => x.ViolationID).FirstOrDefault() != null ? _context.Violations.OrderByDescending(x => x.ViolationID).FirstOrDefault().ViolationID : 0;
+            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Violation, RESEED, {maxColumn})");
+
             _context.Violations.Add(violation);
             await _context.SaveChangesAsync();
 
@@ -103,6 +105,9 @@ namespace TimeAttendanceSystemAPI.Controllers
             {
                 return NotFound();
             }
+
+            await CancelRelationship(id);
+
             var violation = await _context.Violations.FindAsync(id);
             if (violation == null)
             {
@@ -110,9 +115,33 @@ namespace TimeAttendanceSystemAPI.Controllers
             }
 
             _context.Violations.Remove(violation);
+
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        private async Task CancelRelationship(int violationID)
+        {
+            try
+            {
+                var schedules = await _context.Schedules.Where(x => x.ViolationID == violationID).ToListAsync();
+                if (schedules.Any())
+                {
+                    foreach (var schedule in schedules)
+                    {
+                        schedule.ViolationID = null;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                await _context.SaveChangesAsync();
+            }
         }
 
         private bool ViolationExists(int id)
