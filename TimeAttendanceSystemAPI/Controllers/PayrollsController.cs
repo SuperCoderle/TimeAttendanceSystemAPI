@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -22,10 +23,10 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Payroll>>> GetPayrolls()
         {
-          if (_context.Payrolls == null)
-          {
-              return NotFound();
-          }
+            if (_context.Payrolls == null)
+            {
+                return NotFound();
+            }
             return await _context.Payrolls.ToListAsync();
         }
 
@@ -34,10 +35,10 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Payroll>> GetPayroll(int id)
         {
-          if (_context.Payrolls == null)
-          {
-              return NotFound();
-          }
+            if (_context.Payrolls == null)
+            {
+                return NotFound();
+            }
             var payroll = await _context.Payrolls.FindAsync(id);
 
             if (payroll == null)
@@ -104,12 +105,12 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Payroll>> PostPayroll(Payroll payroll)
         {
-          if (_context.Payrolls == null)
-          {
-              return Problem("Entity set 'TimeAttendanceSystemContext.Payrolls'  is null.");
-          }
-            int maxColumn = _context.Payrolls.OrderByDescending(x => x.PayRollID).FirstOrDefault() != null ? _context.Payrolls.OrderByDescending(x => x.PayRollID).FirstOrDefault()!.PayRollID : 0;
-            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Payroll, RESEED, {maxColumn})");
+            if (_context.Payrolls == null)
+            {
+                return Problem("Entity set 'TimeAttendanceSystemContext.Payrolls'  is null.");
+            }
+
+            new CheckIdentService(_context).CheckIdentPayroll();
 
             _context.Payrolls.Add(payroll);
             await _context.SaveChangesAsync();

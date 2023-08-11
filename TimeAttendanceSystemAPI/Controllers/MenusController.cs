@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -66,10 +68,10 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Menu>> GetMenu(int id)
         {
-          if (_context.Menus == null)
-          {
-              return NotFound();
-          }
+            if (_context.Menus == null)
+            {
+                return NotFound();
+            }
             var menu = await _context.Menus.FindAsync(id);
 
             if (menu == null)
@@ -91,6 +93,8 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return BadRequest();
             }
 
+            menu.LastUpdatedAt = DateTime.Now;
+            menu.LastUpdatedBy = User.FindFirstValue("fullname");
             _context.Entry(menu).State = EntityState.Modified;
 
             try
@@ -124,10 +128,13 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return NotFound();
             }
 
-            switch(state)
+            menu.LastUpdatedAt = DateTime.Now;
+            menu.LastUpdatedBy = User.FindFirstValue("fullname");
+
+            switch (state)
             {
                 case "active":
-                    menu.IsActive = value; 
+                    menu.IsActive = value;
                     break;
                 case "submenu":
                     menu.IsSubmenu = value;
@@ -161,12 +168,12 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Menu>> PostMenu(Menu menu)
         {
-          if (_context.Menus == null)
-          {
-              return Problem("Entity set 'TimeAttendanceSystemContext.Menus'  is null.");
-          }
-            int maxColumn = _context.Menus.OrderByDescending(x => x.MenuID).FirstOrDefault() != null ? _context.Menus.OrderByDescending(x => x.MenuID).FirstOrDefault()!.MenuID : 0;
-            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Menu, RESEED, {maxColumn})");
+            if (_context.Menus == null)
+            {
+                return Problem("Entity set 'TimeAttendanceSystemContext.Menus'  is null.");
+            }
+
+            new CheckIdentService(_context).CheckIdentMenu();
 
             _context.Menus.Add(menu);
             await _context.SaveChangesAsync();
@@ -206,8 +213,8 @@ namespace TimeAttendanceSystemAPI.Controllers
         {
             try
             {
-                var mrs = await _context.RoleMenus.Where(x => x.MenuID ==  menuID).ToListAsync();
-                if(mrs.Any())
+                var mrs = await _context.RoleMenus.Where(x => x.MenuID == menuID).ToListAsync();
+                if (mrs.Any())
                 {
                     foreach (var mr in mrs)
                     {
