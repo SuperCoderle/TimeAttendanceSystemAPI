@@ -123,6 +123,7 @@ namespace TimeAttendanceSystemAPI.Controllers
             switch(action)
             {
                 case "Update":
+                    schedule.ApprovedAt = DateTime.Today;
                     schedule.ApprovedBy = User.FindFirstValue("fullname");
                     _context.Entry(schedule).State = EntityState.Modified;
                     break;

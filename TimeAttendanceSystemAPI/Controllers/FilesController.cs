@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Data;
 using System.Security.Claims;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -90,6 +91,32 @@ namespace TimeAttendanceSystemAPI.Controllers
                                     };
 
                                     await _context.Employees.AddAsync(newEmp);
+
+                                    TbUser newUser = new TbUser()
+                                    {
+                                        UserID = Guid.NewGuid(),
+                                        Fullname = serviceEmployee.Rows[i][0].ToString(),
+                                        Email = serviceEmployee.Rows[i][4].ToString(),
+                                        Password = BCrypt.Net.BCrypt.HashPassword(newEmp.PhoneNumber),
+                                        EmployeeID = newEmp.EmployeeID,
+                                        LastLoggedIn = null,
+                                        CreatedAt = DateTime.Now,
+                                        LastUpdatedAt = null,
+                                        IsManager = false,
+                                        IsActive = true
+                                    };
+
+                                    await _context.TbUsers.AddAsync(newUser);
+
+                                    Payroll newPayroll = new Payroll()
+                                    {
+                                        PayRollID = 0,
+                                        Position = serviceEmployee.Rows[i][5].ToString(),
+                                        BasicSalary = decimal.Parse(serviceEmployee.Rows[i][6].ToString()!),
+                                        EmployeeID = newEmp.EmployeeID
+                                    };
+
+                                    await _context.Payrolls.AddAsync(newPayroll);
                                 }
                                 break;
                             case "Menu":

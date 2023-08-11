@@ -25,7 +25,7 @@ namespace TimeAttendanceSystemAPI.Controllers
         {
             if (_context.Employees == null)
             {
-              return NotFound();
+                return NotFound();
             }
             return await _context.Employees.ToListAsync();
         }
@@ -57,7 +57,7 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return NotFound();
             }
 
-            if(!User.Identity!.IsAuthenticated)
+            if (!User.Identity!.IsAuthenticated)
             {
                 return Unauthorized();
             }
@@ -88,6 +88,9 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return BadRequest();
             }
 
+            employee.LastUpdatedAt = DateTime.UtcNow;
+            employee.LastUpdatedBy = User.FindFirstValue("fullname");
+
             _context.Entry(employee).State = EntityState.Modified;
 
             try
@@ -115,15 +118,14 @@ namespace TimeAttendanceSystemAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Employee>> PostEmployee(Employee employee)
         {
-          if (_context.Employees == null)
-          {
-              return Problem("Entity set 'TimeAttendanceSystemContext.Employees'  is null.");
-          }
+            if (_context.Employees == null)
+            {
+                return Problem("Entity set 'TimeAttendanceSystemContext.Employees'  is null.");
+            }
 
-            _context.Employees.Add(employee);
             try
             {
-                await _context.SaveChangesAsync();
+                await CreateOrUpdate(employee);
             }
             catch (DbUpdateException)
             {
@@ -166,6 +168,24 @@ namespace TimeAttendanceSystemAPI.Controllers
             return NoContent();
         }
 
+        private async Task CreateOrUpdate(Employee employee)
+        {
+            try
+            {
+                employee.CreatedBy = User.FindFirstValue("fullname");
+
+                if (_context.TbUsers.Any(x => x.EmployeeID == employee.EmployeeID))
+                    _context.Employees.Update(employee);
+                else
+                    _context.Employees.Add(employee);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
         private bool EmployeeExists(Guid id)
         {
             return (_context.Employees?.Any(e => e.EmployeeID == id)).GetValueOrDefault();
@@ -173,7 +193,7 @@ namespace TimeAttendanceSystemAPI.Controllers
 
         private async Task DeleteUser(Guid empID)
         {
-            if(_context.TbUsers == null)
+            if (_context.TbUsers == null)
             {
                 return;
             }
@@ -208,15 +228,11 @@ namespace TimeAttendanceSystemAPI.Controllers
                 {
                     _context.Payrolls.Remove(payroll);
                 }
+                await _context.SaveChangesAsync();
             }
             catch (Exception)
             {
                 throw;
-            }
-
-            finally 
-            { 
-                await _context.SaveChangesAsync(); 
             }
         }
 
@@ -227,21 +243,18 @@ namespace TimeAttendanceSystemAPI.Controllers
             try
             {
                 var reports = await _context.Reports.Where(x => x.EmployeeID == empID).ToListAsync();
-                if(reports.Any())
+                if (reports.Any())
                 {
                     foreach (var report in reports)
                     {
                         _context.Reports.Remove(report);
                     }
                 }
+                await _context.SaveChangesAsync();
             }
             catch (Exception)
             {
                 throw;
-            }
-            finally
-            {
-                await _context.SaveChangesAsync();
             }
         }
 
@@ -259,48 +272,46 @@ namespace TimeAttendanceSystemAPI.Controllers
                         _context.Schedules.Remove(schedule);
                     }
                 }
+                await _context.SaveChangesAsync();
             }
             catch (Exception)
             {
                 throw;
             }
-            finally
-            {
-                await _context.SaveChangesAsync();
-            }
         }
 
         private async Task CancelRelationship(TbUser user)
         {
-            var userRoles = await _context.UserRoles.Where(x => x.UserID == user.UserID).ToListAsync();
-            if (userRoles.Any())
-            {
-                foreach(var role in userRoles)
-                {
-                    _context.UserRoles.Remove(role);
-                }
-            }
-
-            var refreshTokens = await _context.RefreshTokens.Where(x => x.UserID == user.UserID).ToListAsync();
-            if (refreshTokens.Any())
-            {
-                foreach( var refreshToken in refreshTokens)
-                {
-                    _context.RefreshTokens.Remove(refreshToken);
-                }
-            }
-
-            var passwordChangeds = await _context.PasswordChangeds.Where(x => x.UserID == user.UserID).ToListAsync();
-            if (passwordChangeds.Any())
-            {
-                foreach (var passwordChanged in passwordChangeds)
-                {
-                    _context.PasswordChangeds.Remove(passwordChanged);
-                }
-            }
-
             try
             {
+                var userRoles = await _context.UserRoles.Where(x => x.UserID == user.UserID).ToListAsync();
+                if (userRoles.Any())
+                {
+                    foreach (var role in userRoles)
+                    {
+                        _context.UserRoles.Remove(role);
+                    }
+                }
+
+                var refreshTokens = await _context.RefreshTokens.Where(x => x.UserID == user.UserID).ToListAsync();
+                if (refreshTokens.Any())
+                {
+                    foreach (var refreshToken in refreshTokens)
+                    {
+                        _context.RefreshTokens.Remove(refreshToken);
+                    }
+                }
+
+                var passwordChangeds = await _context.PasswordChangeds.Where(x => x.UserID == user.UserID).ToListAsync();
+                if (passwordChangeds.Any())
+                {
+                    foreach (var passwordChanged in passwordChangeds)
+                    {
+                        _context.PasswordChangeds.Remove(passwordChanged);
+                    }
+                }
+
+
                 await _context.SaveChangesAsync();
             }
             catch (Exception)

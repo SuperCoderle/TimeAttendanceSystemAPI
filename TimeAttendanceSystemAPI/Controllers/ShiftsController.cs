@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -90,8 +91,7 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return Problem("Entity set 'TimeAttendanceSystemContext.Shifts'  is null.");
             }
 
-            int maxColumn = _context.Shifts.OrderByDescending(x => x.ShiftID).FirstOrDefault() != null ? _context.Shifts.OrderByDescending(x => x.ShiftID).FirstOrDefault()!.ShiftID : 0;
-            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Shift, RESEED, {maxColumn})");
+            new CheckIdentService(_context).CheckIdentShift();
 
             _context.Shifts.Add(shift);
             try

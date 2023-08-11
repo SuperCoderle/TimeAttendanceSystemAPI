@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -115,8 +116,7 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return Conflict("Sai mật khẩu");
             }
 
-            int maxColumn = _context.PasswordChangeds.OrderByDescending(x => x.PasswordChangedID).FirstOrDefault() != null ? _context.PasswordChangeds.OrderByDescending(x => x.PasswordChangedID).FirstOrDefault().PasswordChangedID : 0;
-            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (PasswordChanged, RESEED, {maxColumn})");
+            new CheckIdentService(_context).CheckIdentPassword();
 
             var passwordChanged = new PasswordChanged() { UserID = userID, OldPassword = user.Password };
             _context.PasswordChangeds.Add(passwordChanged);

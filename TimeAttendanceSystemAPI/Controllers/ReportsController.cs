@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -60,6 +62,8 @@ namespace TimeAttendanceSystemAPI.Controllers
                 return BadRequest();
             }
 
+            report.LastUpdatedAt = DateTime.UtcNow;
+            report.LastUpdatedBy = User.FindFirstValue("fullname");
             _context.Entry(report).State = EntityState.Modified;
 
             try
@@ -85,19 +89,12 @@ namespace TimeAttendanceSystemAPI.Controllers
         {
             try
             {
-                int maxColumn = _context.Reports.OrderByDescending(x => x.ReportID).FirstOrDefault() != null ? _context.Reports.OrderByDescending(x => x.ReportID).FirstOrDefault().ReportID : 0;
-                _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Report, RESEED, {maxColumn})");
+                new CheckIdentService(_context).CheckIdentReport();
 
                 foreach (var emp in _context.Employees)
                 {
-                    decimal total = 0;
                     var schedules = await _context.Schedules.Where(x => x.EmployeeID == emp.EmployeeID && x.WorkDate.Month == month).ToListAsync();
-                    foreach (var sche in schedules)
-                    {
-                        total += sche.TotalWorkHours;
-                    }
-                    decimal basicSalary = _context.Payrolls.Where(x => x.EmployeeID == emp.EmployeeID).FirstOrDefault()!.BasicSalary;
-                    total = total * basicSalary;
+                    
 
                     if (await _context.Reports.AnyAsync(x => x.EmployeeID == emp.EmployeeID && x.MonthlyReport == month))
                     {
@@ -105,7 +102,7 @@ namespace TimeAttendanceSystemAPI.Controllers
                         
                         if (report != null)
                         {
-                            report.GrossPay = total;
+                            report.GrossPay = Calculate(schedules, emp);
                             report.LastUpdatedAt = DateTime.UtcNow;
                         }
                     }
@@ -117,7 +114,7 @@ namespace TimeAttendanceSystemAPI.Controllers
                             Title = $"Lương tháng {month}",
                             Description = null,
                             EmployeeID = emp.EmployeeID,
-                            GrossPay = total,
+                            GrossPay = Calculate(schedules, emp),
                             MonthlyReport = month,
                             PaidStatus = "Chưa thanh toán",
                             CreatedAt = DateTime.Now,
@@ -161,6 +158,27 @@ namespace TimeAttendanceSystemAPI.Controllers
         private bool ReportExists(int id)
         {
             return (_context.Reports?.Any(e => e.ReportID == id)).GetValueOrDefault();
+        }
+
+        private decimal Calculate(List<Schedule> schedules, Employee employee)
+        {
+            decimal total = 0;
+            try
+            {
+                foreach (var sche in schedules)
+                {
+                    total += sche.TotalWorkHours;
+                }
+                decimal basicSalary = _context.Payrolls.Where(x => x.EmployeeID == employee.EmployeeID).FirstOrDefault()!.BasicSalary;
+
+                total = total * basicSalary;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            return total;
         }
     }
 }

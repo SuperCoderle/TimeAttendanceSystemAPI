@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TimeAttendanceSystemAPI.Models;
+using TimeAttendanceSystemAPI.Services;
 
 namespace TimeAttendanceSystemAPI.Controllers
 {
@@ -88,8 +89,7 @@ namespace TimeAttendanceSystemAPI.Controllers
               return Problem("Entity set 'TimeAttendanceSystemContext.Violations'  is null.");
             }
 
-            int maxColumn = _context.Violations.OrderByDescending(x => x.ViolationID).FirstOrDefault() != null ? _context.Violations.OrderByDescending(x => x.ViolationID).FirstOrDefault().ViolationID : 0;
-            _context.Database.ExecuteSqlRaw($"DBCC CHECKIDENT (Violation, RESEED, {maxColumn})");
+            new CheckIdentService(_context).CheckIdentViolation();
 
             _context.Violations.Add(violation);
             await _context.SaveChangesAsync();
